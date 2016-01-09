@@ -36,6 +36,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     private SurfaceHolder mSurfaceHolder;
     private Camera mCamera;
 
+    private boolean mSafeTakingPicture = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,7 +46,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                mCamera.stopPreview();
                 captureImage();
             }
         });
@@ -56,7 +57,10 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     }
 
     private void captureImage() {
-        mCamera.takePicture(null, null, this);
+        if (mSafeTakingPicture) {
+            mCamera.takePicture(null, null, this);
+            mSafeTakingPicture = false;
+        }
     }
 
     @Override
@@ -84,42 +88,21 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        if (mCamera != null) {
-            try {
-                mCamera.setPreviewDisplay(holder);
-                mCamera.startPreview();
-            } catch (IOException e) {
-                Toast.makeText(MainActivity.this, "Unable to start camera preview.", Toast.LENGTH_LONG).show();
-            }
-        }
+
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
+        if (mCamera != null) {
+            try {
+                mCamera.setPreviewDisplay(holder);
+                mCamera.startPreview();
+                mSafeTakingPicture = true;
+            } catch (IOException e) {
+                Toast.makeText(MainActivity.this, "Unable to start camera preview.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override
@@ -150,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     public void onPictureTaken(byte[] data, Camera camera) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Bitmap origin = BitmapFactory.decodeByteArray(data, 0, data.length);
-        Bitmap bitmap = Bitmap.createScaledBitmap(origin, 200, 150, false);
+        Bitmap bitmap = Bitmap.createScaledBitmap(origin, 400, 300, false);
         bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream);
         RequestBody requestBody = RequestBody.create(MediaType.parse("image/jpeg"), outputStream.toByteArray());
         Call<ResponseModel> call = APIService.getInstance().uploadImage(requestBody);
@@ -164,6 +147,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                 }
                 if (mCamera != null) {
                     mCamera.startPreview();
+                    mSafeTakingPicture = true;
                 }
             }
 
@@ -172,6 +156,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                 showToast(getString(R.string.upload_failed));
                 if (mCamera != null) {
                     mCamera.startPreview();
+                    mSafeTakingPicture = true;
                 }
             }
         });
